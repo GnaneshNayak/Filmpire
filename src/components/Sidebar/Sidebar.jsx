@@ -11,21 +11,17 @@ import {
 } from '@mui/material';
 import { Link } from 'react-router-dom';
 import { useTheme } from '@mui/material/styles';
+import { useDispatch, useSelector } from 'react-redux';
 
 import { useGetGenresQuery } from '../../services/TMBD';
 import useStyles from './style';
 import genreIcon from '../../assets/genres';
+import { selectGenreOrCategory } from '../../features/currentGenreOrCategory';
 
 const categories = [
   { label: 'Popular', value: 'popular' },
   { label: 'Top Rated', value: 'top_rated' },
   { label: 'Upcoming', value: 'upcoming' },
-];
-const demoCategories = [
-  { label: 'Action', value: 'action' },
-  { label: 'Horror', value: 'horror' },
-  { label: 'Comedy', value: 'comedy' },
-  { label: 'Animation', value: 'animation' },
 ];
 
 const redLogo =
@@ -37,7 +33,7 @@ function Sidebar({ setMobileOpen }) {
   const classes = useStyles();
   const theme = useTheme();
   const { data, isFetching } = useGetGenresQuery();
-  console.log(data.ger);
+  const dispatch = useDispatch();
 
   return (
     <>
@@ -53,7 +49,10 @@ function Sidebar({ setMobileOpen }) {
         <ListSubheader>Categories</ListSubheader>
         {categories.map(({ label, value }) => (
           <Link key={value} className={classes.links} to="/">
-            <ListItem onClick={() => {}} button>
+            <ListItem
+              onClick={() => dispatch(selectGenreOrCategory(value))}
+              button
+            >
               <ListItemIcon>
                 <img
                   src={genreIcon[label.toLowerCase()]}
@@ -76,7 +75,10 @@ function Sidebar({ setMobileOpen }) {
         ) : (
           data.genres.map(({ name, id }) => (
             <Link key={name} to="/" className={classes.links}>
-              <ListItem onClick={() => {}} button>
+              <ListItem
+                onClick={() => dispatch(selectGenreOrCategory(id))}
+                button
+              >
                 <ListItemIcon>
                   <img
                     src={genreIcon[name.toLowerCase()]}
