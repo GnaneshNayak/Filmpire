@@ -9,7 +9,7 @@ import {
 import { useSelector } from 'react-redux';
 import { selectGenreOrCategory } from '../../features/currentGenreOrCategory';
 import { useGetMoviesQuery } from '../../services/TMBD';
-import { MovieList } from '../index';
+import { MovieList, Pagination } from '../index';
 
 function Movies() {
   const [page, setPage] = useState(1);
@@ -21,6 +21,9 @@ function Movies() {
     page,
     searchQuery,
   });
+
+  const lg = useMediaQuery((theme) => theme.breakpoints.only('lg'));
+  const numberOfMovies = lg ? 16 : 18;
 
   if (isFetching) {
     return (
@@ -45,7 +48,12 @@ function Movies() {
 
   return (
     <div>
-      <MovieList movies={data} />
+      <MovieList movies={data} numberOfMovies={numberOfMovies} />
+      <Pagination
+        currentPage={page}
+        setPage={setPage}
+        totalPages={data.total_pages}
+      />
     </div>
   );
 }

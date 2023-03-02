@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Modal,
   Typography,
@@ -26,16 +26,29 @@ import axios from 'axios';
 
 import { selectGenreOrCategory } from '../../features/currentGenreOrCategory';
 
-import { useGetMovieQuery } from '../../services/TMBD';
+import {
+  useGetMovieQuery,
+  useGetRecommendationsQuery,
+} from '../../services/TMBD';
+import { MovieList } from '../index';
 
 import useStyles from './styles';
-import gereIcons from '../../assets/genres';
+import genreIcons from '../../assets/genres';
 
 function MovieInformation() {
   const dispatch = useDispatch();
   const { id } = useParams();
   const { data, isError, isFetching } = useGetMovieQuery(id);
   const classes = useStyles();
+  const [open, setOpen] = useState(false);
+
+  const { data: recommendations, isFetching: isrecommendationsFetching } =
+    useGetRecommendationsQuery({
+      list: '/recommendations',
+      movie_id: id,
+    });
+
+  console.log(recommendations);
 
   const isMovieFavorited = false;
   const isMovieWatchlisted = false;
@@ -61,49 +74,48 @@ function MovieInformation() {
   console.log(data);
   return (
     <Grid container className={classes.containerSpaceRound}>
-      <Grid item sm={12} lg={4}>
+      <Grid item sm={12} lg={4} align="center">
         <img
-          className={classes.poster}
           src={`https://image.tmdb.org/t/p/w500/${data?.poster_path}`}
+          className={classes.poster}
           alt={data?.title}
         />
       </Grid>
-      <Grid item container direction="column" lg="7">
+      <Grid item container direction="column" lg={7}>
         <Typography variant="h3" align="center" gutterBottom>
           {data?.title} ({data.release_date.split('-')[0]})
         </Typography>
-
         <Typography variant="h5" align="center" gutterBottom>
           {data?.tagline}
         </Typography>
-        <Grid item className={classes.containerSpaceRound} align="center">
+        <Grid item className={classes.containerSpaceRound}>
           <Box display="flex" align="center">
             <Rating readOnly value={data.vote_average / 2} />
             <Typography
-              variant="subtitle1"
               gutterBottom
+              variant="subtitle1"
               style={{ marginLeft: '10px' }}
             >
-              {data?.vote_average}/10
+              {data?.vote_average} / 10
             </Typography>
           </Box>
-          <Typography variant="h6" align="center" gutterBottom>
-            {data?.runtime}min{' '}
-            {data?.spoken_languages.length > 0
-              ? `/ ${data?.spoken_languages[0].name}`
+          <Typography gutterBottom variant="h6" align="center">
+            {data?.runtime}min/
+            {data?.spoken_languages?.length > 0
+              ? data?.spoken_languages[0].name
               : ''}
           </Typography>
         </Grid>
         <Grid item className={classes.genresContainer}>
           {data?.genres?.map((genre) => (
             <Link
-              key={genre.name}
               className={classes.links}
+              key={genre.name}
               to="/"
               onClick={() => dispatch(selectGenreOrCategory(genre.id))}
             >
               <img
-                src={gereIcons[genre.name.toLowerCase()]}
+                src={genreIcons[genre.name.toLowerCase()]}
                 className={classes.genreImage}
                 height={30}
               />
@@ -113,7 +125,7 @@ function MovieInformation() {
             </Link>
           ))}
         </Grid>
-        <Typography variant="h5" gutterBottom style={{ marginTop: '10px' }}>
+        <Typography variant="h5" gutterBottom style={{ marginTop: '20px' }}>
           Overview
         </Typography>
         <Typography style={{ marginBottom: '2rem' }}>
@@ -134,90 +146,121 @@ function MovieInformation() {
                       xs={4}
                       md={2}
                       component={Link}
-                      to={`/actors/${character.id}`}
+                      to={`/actors/${character?.id}`}
                       style={{ textDecoration: 'none' }}
                     >
                       <img
                         className={classes.castImage}
-                        src={`https://image.tmdb.org/t/p/w500/${character.profile_path}`}
-                        alt={character.name}
+                        src={
+                          character?.profile_path
+                            ? `https://image.tmdb.org/t/p/w500/${character?.profile_path}`
+                            : noImage
+                        }
+                        alt={character?.name}
                       />
-                      <Typography color="textPrimary" align="center">
+                      <Typography color="textPrimary">
                         {character?.name}
                       </Typography>
-
                       <Typography color="textSecondary">
-                        {character.character.split('/')[0]}
+                        {character?.character.split('/')[0]}
                       </Typography>
                     </Grid>
                   ),
               )
               .slice(0, 6)}
-          <Grid item container style={{ marginTop: '2rem' }}>
-            <div className={classes.buttonsContainer}>
-              <Grid items xs={12} sm={6} className={classes.buttonsContainer}>
-                <ButtonGroup size="medium" variant="outlined">
-                  <Button
-                    target="_balnk"
-                    rel="noopener noref"
-                    href={data?.homepage}
-                    endIcon={<Language />}
+        </Grid>
+        <Grid item container style={{ marginTop: '2rem' }}>
+          <div className={classes.buttonsContainer}>
+            <Grid item xs={12} sm={6} className={classes.buttonsContainer}>
+              <ButtonGroup size="small" variant="outlined">
+                <Button
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  href={data?.homepage}
+                  endIcon={<Language />}
+                >
+                  Website
+                </Button>
+                <Button
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  href={`https://www.imdb.com/title/${data?.imdb_id}`}
+                  endIcon={<MovieIcon />}
+                >
+                  IMDB
+                </Button>
+                <Button
+                  onClick={() => setOpen(true)}
+                  href="#"
+                  endIcon={<Theaters />}
+                >
+                  Trailer
+                </Button>
+              </ButtonGroup>
+            </Grid>
+            <Grid item xs={12} sm={6} className={classes.buttonsContainer}>
+              <ButtonGroup size="small" variant="outlined">
+                <Button
+                  onClick={addToFavorite}
+                  endIcon={
+                    isMovieFavorited ? <FavoriteBorderOutlined /> : <Favorite />
+                  }
+                >
+                  {isMovieFavorited ? 'Unfavorite' : 'Favorite'}
+                </Button>
+                <Button
+                  onClick={addToWatchlist}
+                  endIcon={isMovieWatchlisted ? <Remove /> : <PlusOne />}
+                >
+                  Watchlist
+                </Button>
+                <Button
+                  endIcon={<ArrowBack />}
+                  sx={{ borderColor: 'primary.main' }}
+                >
+                  <Typography
+                    variant="subtitle2"
+                    component={Link}
+                    to="/"
+                    color="inherit"
+                    sx={{ textDecoration: 'none' }}
                   >
-                    Website
-                  </Button>
-                  <Button
-                    target="_balnk"
-                    rel="noopener noref"
-                    href={`https://www.imdb.com/title/${data.imdb_id}`}
-                    endIcon={<MovieIcon />}
-                  >
-                    IMDB
-                  </Button>
-                  <Button onClick={() => {}} href="#" endIcon={<Theaters />}>
-                    Tralier
-                  </Button>
-                </ButtonGroup>
-              </Grid>
-              <Grid items xs={12} sm={6} className={classes.buttonsContainer}>
-                <ButtonGroup size="small" variant="outlined">
-                  <Button
-                    onClick={addToFavorite}
-                    endIcon={
-                      isMovieFavorited ? (
-                        <FavoriteBorderOutlined />
-                      ) : (
-                        <Favorite />
-                      )
-                    }
-                  >
-                    {isMovieFavorited ? 'Unfavorite' : 'Favorite'}
-                  </Button>
-                  <Button
-                    onClick={addToWatchlist}
-                    endIcon={isMovieWatchlisted ? <Remove /> : <PlusOne />}
-                  >
-                    Watchlist
-                  </Button>
-                  <Button
-                    endIcon={<ArrowBack />}
-                    sx={{ borderColor: 'primary.main' }}
-                  >
-                    <Typography
-                      color="inherit"
-                      component={Link}
-                      to="/"
-                      variant="subtitle2"
-                      style={{ textDecoration: 'none' }}
-                    >
-                      Back
-                    </Typography>
-                  </Button>
-                </ButtonGroup>
-              </Grid>
-            </div>
-          </Grid>
+                    Back
+                  </Typography>
+                </Button>
+              </ButtonGroup>
+            </Grid>
+          </div>
         </Grid>
       </Grid>
+      <Box marginTop="5rem" width="100%">
+        <Typography variant="h3" gutterBottom align="center">
+          You might also like
+        </Typography>
+        {/* loop throurgh new recommended movie */}
+        {recommendations ? (
+          <MovieList movies={recommendations} numberOfMovies={12} />
+        ) : (
+          <Box>Sorry, nothing as found</Box>
+        )}
+      </Box>
+      <Modal
+        closeAfterTransition
+        className={classes.modal}
+        open={open}
+        onClose={() => setOpen(false)}
+      >
+        {data?.videos?.results?.length > 0 && (
+          <iframe
+            autoPlay
+            className={classes.video}
+            frameBorder="0"
+            title="Triler"
+            src={`https://www.youtube.com/embed/${data.videos.results[0].key}`}
+            allow="autoplay"
+          />
+        )}
+      </Modal>
     </Grid>
   );
 }
