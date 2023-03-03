@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Modal,
   Typography,
@@ -29,32 +29,84 @@ import { selectGenreOrCategory } from '../../features/currentGenreOrCategory';
 import {
   useGetMovieQuery,
   useGetRecommendationsQuery,
+  useGetListQuery,
 } from '../../services/TMBD';
 import { MovieList } from '../index';
 
 import useStyles from './styles';
 import genreIcons from '../../assets/genres';
+import { userSelector } from '../../features/auth';
 
 function MovieInformation() {
+  const user = useSelector(userSelector);
   const dispatch = useDispatch();
   const { id } = useParams();
-  const { data, isError, isFetching } = useGetMovieQuery(id);
   const classes = useStyles();
   const [open, setOpen] = useState(false);
+  const [isMovieFavorited, setIsMovieFavorited] = useState(false);
+  const [isMovieWatchListed, setIsMovieWatchListed] = useState(false);
 
+  const { data, isError, isFetching } = useGetMovieQuery(id);
+  const { data: favoriteMovies } = useGetListQuery({
+    listName: 'favorite/movies',
+    accountId: user.id,
+    sessionId: localStorage.getItem('session_id'),
+    page: 1,
+  });
+  const { data: watchlistMovies } = useGetListQuery({
+    listName: 'watchlist/movies',
+    accountId: user.id,
+    sessionId: localStorage.getItem('session_id'),
+    page: 1,
+  });
   const { data: recommendations, isFetching: isrecommendationsFetching } =
     useGetRecommendationsQuery({
       list: '/recommendations',
       movie_id: id,
     });
 
-  console.log(recommendations);
+  const addToFavorite = async () => {
+    const baseUrl = 'https://api.themoviedb.org/3';
+    await axios.post(
+      `${baseUrl}/account/${user.id}/favorite?api_key=${
+        process.env.REACT_APP_TMDB_KEY
+      }&session_id=${localStorage.getItem('session_id')}`,
+      {
+        media_type: 'movie',
+        media_id: id, // which movie to favorite
+        favorite: !isMovieFavorited,
+      },
+    );
 
-  const isMovieFavorited = false;
-  const isMovieWatchlisted = false;
+    setIsMovieFavorited((prevState) => !prevState);
+  };
+  const addToWatchlist = async () => {
+    const baseUrl = 'https://api.themoviedb.org/3';
+    await axios.post(
+      `${baseUrl}/account/${user.id}/watchlist?api_key=${
+        process.env.REACT_APP_TMDB_KEY
+      }&session_id=${localStorage.getItem('session_id')}`,
+      {
+        media_type: 'movie',
+        media_id: id,
+        watchlist: !isMovieWatchListed,
+      },
+    );
 
-  const addToFavorite = () => {};
-  const addToWatchlist = () => {};
+    setIsMovieWatchListed((prevState) => !prevState);
+  };
+
+  useEffect(() => {
+    setIsMovieFavorited(
+      !!favoriteMovies?.results?.find((movie) => movie?.id === data?.id),
+    );
+  }, [favoriteMovies, data]);
+
+  useEffect(() => {
+    setIsMovieWatchListed(
+      !!watchlistMovies?.results?.find((movie) => movie?.id === data?.id),
+    );
+  }, [watchlistMovies, data]);
 
   if (isFetching) {
     return (
@@ -71,10 +123,16 @@ function MovieInformation() {
     );
   }
 
-  console.log(data);
+  // console.log(data);
   return (
     <Grid container className={classes.containerSpaceRound}>
-      <Grid item sm={12} lg={4} align="center">
+      <Grid
+        item
+        sm={12}
+        lg={4}
+        align="center"
+        style={{ display: 'flex', marginBottom: '30px' }}
+      >
         <img
           src={`https://image.tmdb.org/t/p/w500/${data?.poster_path}`}
           className={classes.poster}
@@ -100,10 +158,7 @@ function MovieInformation() {
             </Typography>
           </Box>
           <Typography gutterBottom variant="h6" align="center">
-            {data?.runtime}min/
-            {data?.spoken_languages?.length > 0
-              ? data?.spoken_languages[0].name
-              : ''}
+            {data?.runtime}min | Language: {data?.spoken_languages[0].name}
           </Typography>
         </Grid>
         <Grid item className={classes.genresContainer}>
@@ -154,7 +209,7 @@ function MovieInformation() {
                         src={
                           character?.profile_path
                             ? `https://image.tmdb.org/t/p/w500/${character?.profile_path}`
-                            : noImage
+                            : 'noImage'
                         }
                         alt={character?.name}
                       />
@@ -210,7 +265,7 @@ function MovieInformation() {
                 </Button>
                 <Button
                   onClick={addToWatchlist}
-                  endIcon={isMovieWatchlisted ? <Remove /> : <PlusOne />}
+                  endIcon={isMovieWatchListed ? <Remove /> : <PlusOne />}
                 >
                   Watchlist
                 </Button>
